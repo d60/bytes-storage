@@ -5,15 +5,28 @@ DEFAULT_STORAGE_PATH = Path('__bytes_storage__')
 
 
 class BytesStorage:
-    def __init__(self, storage_path = None) -> None:
-        if not storage_path:
-            storage_path = DEFAULT_STORAGE_PATH
+    """
+    Examples
+    --------
+    >>> from bytesStorage import BytesStorage
+
+    >>> bs = BytesStorage()
+    >>> bytes_obj = bs(b'This is a example bytes.')
+    >>> print(bytes_obj)
+    <Bytes uuid="15f9392f-8a48-4665-a3a3-549bcd60d0d1">
+
+    >>> print(bytes_obj())
+    b'This is a example bytes.'
+    """
+    _storages = []
+
+    def __init__(self, storage_path = DEFAULT_STORAGE_PATH) -> None:
         self.storage_path = Path(storage_path)
-        if not self.storage_path.exists():
-            try:
-                self.storage_path.mkdir()
-            except Exception as e:
-                raise RuntimeError('Could not make directory.') from e
+        if self.storage_path in self._storages:
+            raise ValueError(f'Storage {storage_path.name} is already exists.')
+
+        self.storage_path.mkdir(exist_ok=True)
+        self._storages.append(self.storage_path)
         self.clear()
 
     def _generate_id(self) -> str:
@@ -26,14 +39,15 @@ class BytesStorage:
 
     def clear(self):
         for f in self.storage_path.iterdir():
-            try:
-                f.unlink(missing_ok=True)
-            except:
-                pass
+            f.unlink(missing_ok=True)
 
     def delete(self):
-        self.clear()
-        self.storage_path.rmdir()
+        if self.storage_path in self._storages:
+            self._storages.remove(self.storage_path)
+
+        if self.storage_path.exists():
+            self.clear()
+            self.storage_path.rmdir()
 
     def __del__(self) -> None:
         self.delete()
@@ -65,6 +79,9 @@ class Bytes:
             self.release()
         return bytes
 
+    def __call__(self):
+        return self.read()
+
     def __bytes__(self):
         return self.read()
 
@@ -73,7 +90,7 @@ class Bytes:
 
     def __repr__(self) -> str:
         return (
-            f'<StorageBytes uuid="{self.uuid}"'
+            f'<Bytes uuid="{self.uuid}"'
             f'{" released" if self.released else ""}'
             '>'
         )
